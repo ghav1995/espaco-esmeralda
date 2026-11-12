@@ -10,13 +10,10 @@ const WHATSAPP_NUMERO = "5516992038705";
 const WHATSAPP_MENSAGEM =
   "Olá! Vi o site do Espaço de Lazer Esmeralda e gostaria de consultar a disponibilidade de datas.";
 
-// Quantas fotos procurar na pasta images/ (foto-1.jpg, foto-2.jpg, ...).
-// Fotos que não existirem são ignoradas automaticamente.
-const TOTAL_FOTOS = 12;
-
 // Avaliações do Google Maps. Copie o texto EXATAMENTE como está no Google,
-// sem alterar nem inventar. Enquanto a lista estiver vazia, a seção não aparece.
-// Modelo de uma avaliação ("quando" é opcional, por exemplo "em 2024"):
+// sem alterar nem inventar. A ordem aqui não importa: o site mostra da melhor
+// nota para a pior e, com a mesma nota, primeiro as de comentário mais longo.
+// Modelo ("quando" é opcional, por exemplo "em 2024"):
 //   { nome: "Nome da pessoa", estrelas: 5, texto: "Texto da avaliação.", quando: "" },
 const AVALIACOES = [
   {
@@ -35,6 +32,11 @@ const AVALIACOES = [
     texto: "Bom",
   },
 ];
+
+// Nota média e total de avaliações que aparecem na ficha do espaço no Google.
+// Enquanto ficarem como null, essa linha não aparece no site.
+const AVALIACOES_NOTA = null;   // exemplo: 4.8
+const AVALIACOES_TOTAL = null;  // exemplo: 12
 
 // Link do botão "Ver todas no Google". Troque pelo link da ficha do espaço no
 // Google Maps (botão Compartilhar > Copiar link) para abrir direto nas avaliações.
@@ -110,87 +112,39 @@ if ("IntersectionObserver" in window && !semMovimento) {
         observer.unobserve(entrada.target);
       }
     });
-  }, { threshold: 0.1, rootMargin: "0px 0px -40px 0px" });
+  }, { threshold: 0.08, rootMargin: "0px 0px -40px 0px" });
   animados.forEach((el) => observer.observe(el));
 } else {
   animados.forEach((el) => el.classList.add("is-visible"));
 }
 
 
-// Galeria: procura images/foto-1.jpg ... foto-N.jpg e mostra as que existirem
-const secaoFotos = document.getElementById("fotos");
-const galeria = document.getElementById("galeria");
-const fotos = [];
-
-function verificarFoto(src) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(src);
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
+// Estrelas: devolve o HTML de 5 estrelas, com "nota" delas acesas
+function htmlEstrelas(nota) {
+  let html = "";
+  for (let i = 1; i <= 5; i++) {
+    html += '<svg class="icon-fill' + (i > nota ? " is-off" : "") +
+      '" aria-hidden="true"><use href="#i-star"/></svg>';
+  }
+  return html;
 }
 
-const tentativas = [];
-for (let i = 1; i <= TOTAL_FOTOS; i++) {
-  tentativas.push(verificarFoto("images/foto-" + i + ".jpg"));
-}
 
-Promise.all(tentativas).then((resultado) => {
-  resultado.filter(Boolean).forEach((src) => fotos.push(src));
-  if (!fotos.length) return;
-
-  fotos.forEach((src, indice) => {
-    const botao = document.createElement("button");
-    botao.type = "button";
-    botao.className = "gallery-item";
-    botao.setAttribute("aria-label", "Ampliar foto " + (indice + 1));
-
-    const img = document.createElement("img");
-    img.src = src;
-    img.alt = "Foto " + (indice + 1) + " do Espaço de Lazer Esmeralda";
-    img.decoding = "async";
-
-    botao.appendChild(img);
-    botao.addEventListener("click", () => abrirFoto(indice));
-    galeria.appendChild(botao);
-  });
-
-  secaoFotos.hidden = false;
-  document.querySelectorAll(".nav-fotos").forEach((link) => (link.hidden = false));
-});
-
-
-// Avaliações do Google: monta o carrossel a partir da lista AVALIACOES
+// Avaliações do Google: troca os cartões de carregamento pelos cartões reais
 const secaoAvaliacoes = document.getElementById("avaliacoes");
 const listaAvaliacoes = document.getElementById("avaliacoes-lista");
 const avAnterior = document.getElementById("avaliacoes-anterior");
 const avProxima = document.getElementById("avaliacoes-proxima");
+const CORES_AVATAR = ["#1a73e8", "#9334e6", "#e8710a", "#188038", "#d93025", "#12b5cb"];
 
-function criarAvaliacao(avaliacao) {
-  const nota = Math.max(1, Math.min(5, Math.round(avaliacao.estrelas || 5)));
-
+function criarAvaliacao(avaliacao, indice) {
   const cartao = document.createElement("article");
   cartao.className = "review";
-
-  const estrelas = document.createElement("div");
-  estrelas.className = "review-stars";
-  estrelas.setAttribute("role", "img");
-  estrelas.setAttribute("aria-label", nota + " de 5 estrelas");
-  for (let i = 1; i <= 5; i++) {
-    estrelas.insertAdjacentHTML(
-      "beforeend",
-      '<svg class="icon-fill' + (i > nota ? " is-off" : "") + '" aria-hidden="true"><use href="#i-star"/></svg>'
-    );
-  }
-
-  const texto = document.createElement("blockquote");
-  texto.className = "review-text";
-  texto.textContent = avaliacao.texto;
 
   const inicial = document.createElement("span");
   inicial.className = "review-avatar";
   inicial.setAttribute("aria-hidden", "true");
+  inicial.style.backgroundColor = CORES_AVATAR[indice % CORES_AVATAR.length];
   inicial.textContent = avaliacao.nome.trim().charAt(0).toUpperCase();
 
   const nome = document.createElement("strong");
@@ -205,12 +159,42 @@ function criarAvaliacao(avaliacao) {
   quem.className = "review-who";
   quem.append(nome, origem);
 
-  const autor = document.createElement("footer");
-  autor.className = "review-author";
-  autor.append(inicial, quem);
+  const topo = document.createElement("header");
+  topo.className = "review-top";
+  topo.append(inicial, quem);
+  topo.insertAdjacentHTML("beforeend", '<svg class="review-g" aria-hidden="true"><use href="#i-google"/></svg>');
 
-  cartao.append(estrelas, texto, autor);
+  const estrelas = document.createElement("div");
+  estrelas.className = "review-stars";
+  estrelas.setAttribute("role", "img");
+  estrelas.setAttribute("aria-label", avaliacao.estrelas + " de 5 estrelas");
+  estrelas.innerHTML = htmlEstrelas(avaliacao.estrelas);
+
+  const texto = document.createElement("blockquote");
+  texto.className = "review-text";
+  texto.textContent = avaliacao.texto;
+
+  const mais = document.createElement("button");
+  mais.className = "review-more";
+  mais.type = "button";
+  mais.hidden = true;
+  mais.textContent = "Ver mais";
+  mais.addEventListener("click", () => {
+    const aberto = cartao.classList.toggle("is-open");
+    mais.textContent = aberto ? "Ver menos" : "Ver mais";
+  });
+
+  cartao.append(topo, estrelas, texto, mais);
   return cartao;
+}
+
+// "Ver mais" só aparece nos textos que não couberam no cartão
+function atualizarVerMais() {
+  listaAvaliacoes.querySelectorAll(".review:not(.is-skeleton)").forEach((cartao) => {
+    if (cartao.classList.contains("is-open")) return;
+    const texto = cartao.querySelector(".review-text");
+    cartao.querySelector(".review-more").hidden = texto.scrollHeight <= texto.clientHeight + 1;
+  });
 }
 
 function atualizarSetasAvaliacoes() {
@@ -229,21 +213,71 @@ function rolarAvaliacoes(direcao) {
   listaAvaliacoes.scrollBy({ left: direcao * passo, behavior: semMovimento ? "auto" : "smooth" });
 }
 
-const avaliacoesValidas = AVALIACOES.filter((a) => a && a.nome && a.texto);
+function ajustarAvaliacoes() {
+  atualizarVerMais();
+  atualizarSetasAvaliacoes();
+}
+
+const avaliacoesValidas = AVALIACOES
+  .filter((a) => a && a.nome && a.texto)
+  .map((a) => Object.assign({}, a, { estrelas: Math.max(1, Math.min(5, Math.round(a.estrelas || 5))) }))
+  .sort((a, b) => (b.estrelas - a.estrelas) || (b.texto.length - a.texto.length));
 
 if (avaliacoesValidas.length) {
-  avaliacoesValidas.forEach((a) => listaAvaliacoes.appendChild(criarAvaliacao(a)));
+  listaAvaliacoes.replaceChildren(...avaliacoesValidas.map(criarAvaliacao));
+  listaAvaliacoes.removeAttribute("aria-busy");
   document.getElementById("avaliacoes-link").href = AVALIACOES_LINK;
 
-  secaoAvaliacoes.hidden = false;
-  document.querySelectorAll(".nav-avaliacoes").forEach((link) => (link.hidden = false));
+  if (AVALIACOES_NOTA && AVALIACOES_TOTAL) {
+    document.getElementById("avaliacoes-nota").textContent =
+      AVALIACOES_NOTA.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    document.getElementById("avaliacoes-estrelas").innerHTML = htmlEstrelas(Math.round(AVALIACOES_NOTA));
+    document.getElementById("avaliacoes-total").textContent =
+      AVALIACOES_TOTAL + (AVALIACOES_TOTAL === 1 ? " avaliação" : " avaliações");
+    document.getElementById("avaliacoes-resumo").hidden = false;
+  }
 
   avAnterior.addEventListener("click", () => rolarAvaliacoes(-1));
   avProxima.addEventListener("click", () => rolarAvaliacoes(1));
   listaAvaliacoes.addEventListener("scroll", atualizarSetasAvaliacoes, { passive: true });
-  window.addEventListener("resize", atualizarSetasAvaliacoes);
-  atualizarSetasAvaliacoes();
+  window.addEventListener("resize", ajustarAvaliacoes);
+  window.addEventListener("load", ajustarAvaliacoes);
+  ajustarAvaliacoes();
+} else {
+  // Sem avaliações cadastradas, a seção e o link do menu somem
+  secaoAvaliacoes.hidden = true;
+  document.querySelectorAll(".nav-avaliacoes").forEach((link) => (link.hidden = true));
 }
+
+
+// Galeria: cada foto surge quando termina de carregar; até lá fica o esqueleto
+const itensGaleria = Array.from(document.querySelectorAll(".gallery-item"));
+
+const fotos = itensGaleria.map((item) => {
+  const img = item.querySelector("img");
+  return { src: item.dataset.full || img.src, alt: img.alt };
+});
+
+itensGaleria.forEach((item, indice) => {
+  const img = item.querySelector("img");
+  const pronta = () => item.classList.add("is-loaded");
+
+  if (img.complete && img.naturalWidth) {
+    pronta();
+  } else {
+    img.addEventListener("load", pronta);
+    img.addEventListener("error", pronta);
+  }
+
+  item.addEventListener("click", () => abrirFoto(indice));
+});
+
+
+// Mapa: o esqueleto some quando o mapa do Google termina de carregar
+document.querySelectorAll(".map").forEach((mapa) => {
+  const moldura = mapa.querySelector("iframe");
+  moldura.addEventListener("load", () => mapa.classList.add("is-loaded"));
+});
 
 
 // Visualizador de fotos (lightbox)
@@ -254,10 +288,22 @@ const lbAnterior = lightbox.querySelector(".lb-prev");
 const lbProxima = lightbox.querySelector(".lb-next");
 let fotoAtual = 0;
 
+lbImg.addEventListener("load", () => lightbox.classList.remove("is-loading"));
+lbImg.addEventListener("error", () => lightbox.classList.remove("is-loading"));
+
 function mostrarFoto() {
-  lbImg.src = fotos[fotoAtual];
-  lbImg.alt = "Foto " + (fotoAtual + 1) + " de " + fotos.length + " do Espaço de Lazer Esmeralda";
+  const foto = fotos[fotoAtual];
+
+  // Anel de carregamento até a versão grande chegar
+  if (lbImg.getAttribute("src") !== foto.src) {
+    lightbox.classList.add("is-loading");
+    lbImg.src = foto.src;
+    if (lbImg.complete && lbImg.naturalWidth) lightbox.classList.remove("is-loading");
+  }
+
+  lbImg.alt = foto.alt;
   lbContador.textContent = (fotoAtual + 1) + " / " + fotos.length;
+
   const varias = fotos.length > 1;
   lbAnterior.hidden = !varias;
   lbProxima.hidden = !varias;
