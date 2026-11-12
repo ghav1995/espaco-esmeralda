@@ -962,9 +962,8 @@ h1 em, h2 em, .statement-text em { font-style: italic; font-weight: 500; }
   }
 }
 
-/* Contador, legendas, miniaturas e setas.
+/* Legendas, miniaturas e setas.
    Sem o carrossel (sem JavaScript) ficam só as legendas, em lista. */
-.lux-count,
 .lux-thumbs,
 .lux-nav { display: none; }
 
@@ -996,18 +995,17 @@ h1 em, h2 em, .statement-text em { font-style: italic; font-weight: 500; }
 /* Com o carrossel ligado: uma legenda por vez, trocando junto com a foto */
 .lux.is-ready .lux-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
-    "conta   setas"
-    "legenda legenda"
-    "minis   minis";
+    "legenda"
+    "minis"
+    "setas";
   align-items: center;
   gap: 16px;
 }
 
-.lux.is-ready .lux-count { grid-area: conta; display: flex; }
-.lux.is-ready .lux-nav { grid-area: setas; display: flex; }
-.lux.is-ready .lux-thumbs { grid-area: minis; display: flex; margin-top: 14px; }
+.lux.is-ready .lux-nav { grid-area: setas; display: flex; justify-self: center; margin-top: 6px; }
+.lux.is-ready .lux-thumbs { grid-area: minis; display: flex; margin-top: 10px; }
 
 .lux.is-ready .lux-captions {
   grid-area: legenda;
@@ -1029,24 +1027,6 @@ h1 em, h2 em, .statement-text em { font-style: italic; font-weight: 500; }
   visibility: visible;
   transform: none;
   transition: opacity .8s var(--ease-lux) .25s, transform .8s var(--ease-lux) .25s, visibility 0s;
-}
-
-.lux-count {
-  align-items: baseline;
-  gap: 10px;
-  font-family: var(--font-display);
-  font-size: 2.1rem;
-  font-weight: 500;
-  line-height: 1;
-  color: var(--gold);
-}
-
-.lux-count small {
-  font-family: var(--font-body);
-  font-size: .72rem;
-  font-weight: 700;
-  letter-spacing: .24em;
-  color: rgba(255, 255, 255, .55);
 }
 
 .lux-thumbs {
@@ -1172,17 +1152,16 @@ h1 em, h2 em, .statement-text em { font-style: italic; font-weight: 500; }
 /* Tablet e computador: texto à esquerda, miniaturas e setas à direita */
 @media (min-width: 860px) {
   .lux.is-ready .lux-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "conta   minis"
+      "legenda minis"
       "legenda setas";
     align-items: start;
     gap: 14px 48px;
   }
 
-  .lux.is-ready .lux-count { align-self: center; }
   .lux.is-ready .lux-thumbs { justify-content: flex-end; margin-top: 0; }
-  .lux.is-ready .lux-nav { margin-top: 10px; }
-  .lux-count { font-size: 2.7rem; }
+  .lux.is-ready .lux-nav { justify-self: end; margin-top: 10px; }
   .lux-thumb { flex-basis: 64px; }
   .lux-btn { width: 54px; height: 54px; }
   .lux-btn-sm { width: 40px; height: 40px; }

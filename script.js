@@ -748,7 +748,6 @@ const galeria = document.getElementById("galeria");
 const galTrilho = galeria.querySelector(".lux-track");
 const galLegendas = Array.from(document.getElementById("galeria-legendas").children);
 const galAnuncio = document.getElementById("galeria-anuncio");
-const galAtual = document.getElementById("galeria-atual");
 const galMinis = document.getElementById("galeria-miniaturas");
 
 const fotos = Array.from(galTrilho.children).map((slide, indice) => {
@@ -785,7 +784,6 @@ const miniaturas = fotos.map((foto, indice) => {
 });
 
 galMinis.append(...miniaturas);
-document.getElementById("galeria-total").textContent = "/ " + doisDigitos(fotos.length);
 
 const carGaleria = criarCarrossel({
   raiz: galeria,
@@ -810,7 +808,6 @@ const carGaleria = criarCarrossel({
       else legenda.setAttribute("aria-hidden", "true");
     });
 
-    galAtual.textContent = doisDigitos(indice + 1);
     galAnuncio.textContent = "Foto " + (indice + 1) + " de " + fotos.length + ": " + fotos[indice].titulo;
   },
 });
