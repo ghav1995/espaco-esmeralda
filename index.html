@@ -84,6 +84,9 @@
     <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
     <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12"/><path d="M15 6v12"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8.5 6v12l9.5-6z"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M15 4h5v5"/><path d="M9 20H4v-5"/><path d="m20 4-6 6"/><path d="m4 20 6-6"/></symbol>
   </svg>
 
   <!-- Linha dourada de progresso da rolagem -->
@@ -271,51 +274,96 @@
       </div>
     </section>
 
-    <!-- Galeria. Cada foto tem dois arquivos em images/: foto-N.jpg (grande) e foto-N-p.jpg (pequena). -->
+    <!-- Galeria em carrossel. Cada foto tem dois arquivos em images/: foto-N.jpg (grande) e
+         foto-N-p.jpg (pequena). Para incluir uma foto, copie um <li> inteiro: use "is-wide" para
+         foto deitada e "is-tall" para foto em pé. O texto de data-titulo aparece como legenda. -->
     <section class="section section-fotos" id="fotos">
       <div class="container">
         <header class="section-head center reveal">
           <p class="eyebrow">Galeria</p>
           <h2>Conheça cada <em>cantinho</em></h2>
-          <p class="lead">Fotos reais do espaço. Toque em uma foto para ampliar.</p>
+          <p class="lead">Fotos reais do espaço. Arraste para o lado e toque na foto para ampliar.</p>
         </header>
-        <div class="gallery reveal" id="galeria">
-          <button class="gallery-item g-a" type="button" data-full="images/foto-1.jpg" aria-label="Ampliar foto da piscina com cascata">
-            <img src="images/foto-1-p.jpg" srcset="images/foto-1-p.jpg 900w, images/foto-1.jpg 1600w"
-                 sizes="(min-width: 1200px) 572px, (min-width: 640px) 50vw, 100vw"
-                 width="900" height="578" loading="lazy" decoding="async"
-                 alt="Piscina com cascata, com a churrasqueira e a área coberta ao fundo">
-          </button>
-          <button class="gallery-item g-b" type="button" data-full="images/foto-2.jpg" aria-label="Ampliar foto da churrasqueira">
-            <img src="images/foto-2-p.jpg" srcset="images/foto-2-p.jpg 900w, images/foto-2.jpg 1600w"
-                 sizes="(min-width: 1200px) 572px, (min-width: 640px) 50vw, 100vw"
-                 width="900" height="600" loading="lazy" decoding="async"
-                 alt="Churrasqueira de tijolinho com balcão, banquetas, pia e geladeira">
-          </button>
-          <button class="gallery-item g-d" type="button" data-full="images/foto-3.jpg" aria-label="Ampliar foto da rede e do ombrelone">
-            <img src="images/foto-3-p.jpg" srcset="images/foto-3-p.jpg 900w, images/foto-3.jpg 1600w"
-                 sizes="(min-width: 1200px) 376px, (min-width: 640px) 33vw, 50vw"
-                 width="900" height="600" loading="lazy" decoding="async"
-                 alt="Rede e ombrelone ao lado da piscina infantil">
-          </button>
-          <button class="gallery-item g-e" type="button" data-full="images/foto-4.jpg" aria-label="Ampliar foto da piscina infantil">
-            <img src="images/foto-4-p.jpg" srcset="images/foto-4-p.jpg 900w, images/foto-4.jpg 1600w"
-                 sizes="(min-width: 1200px) 376px, (min-width: 640px) 33vw, 50vw"
-                 width="900" height="600" loading="lazy" decoding="async"
-                 alt="Piscina infantil, com a piscina maior ao fundo">
-          </button>
-          <button class="gallery-item g-c" type="button" data-full="images/foto-5.jpg" aria-label="Ampliar foto da sala de jogos">
-            <img src="images/foto-5-p.jpg" srcset="images/foto-5-p.jpg 600w, images/foto-5.jpg 1066w"
-                 sizes="(min-width: 1200px) 376px, (min-width: 640px) 33vw, 50vw"
-                 width="600" height="900" loading="lazy" decoding="async"
-                 alt="Sala de jogos com mesa de pebolim, TV e beliche">
-          </button>
-          <button class="gallery-item g-f" type="button" data-full="images/foto-6.jpg" aria-label="Ampliar foto dos banheiros">
-            <img src="images/foto-6-p.jpg" srcset="images/foto-6-p.jpg 600w, images/foto-6.jpg 1066w"
-                 sizes="(min-width: 1200px) 376px, (min-width: 640px) 33vw, 50vw"
-                 width="600" height="900" loading="lazy" decoding="async"
-                 alt="Corredor dos banheiros, com placa de banheiro acessível">
-          </button>
+      </div>
+
+      <div class="lux reveal" id="galeria" role="region" aria-roledescription="carrossel" aria-label="Fotos do espaço">
+        <div class="lux-viewport">
+          <ul class="lux-track">
+            <li class="lux-slide is-wide">
+              <button class="lux-photo" type="button" data-full="images/foto-1.jpg" data-titulo="Piscina com cascata" aria-label="Ampliar foto da piscina com cascata">
+                <img src="images/foto-1-p.jpg" srcset="images/foto-1-p.jpg 900w, images/foto-1.jpg 1600w"
+                     sizes="(min-width: 900px) 810px, 78vw"
+                     width="900" height="578" loading="lazy" draggable="false"
+                     alt="Piscina com cascata, com a churrasqueira e a área coberta ao fundo">
+                <span class="lux-zoom" aria-hidden="true"><svg class="icon"><use href="#i-expand"/></svg></span>
+              </button>
+            </li>
+            <li class="lux-slide is-wide">
+              <button class="lux-photo" type="button" data-full="images/foto-2.jpg" data-titulo="Churrasqueira e balcão" aria-label="Ampliar foto da churrasqueira">
+                <img src="images/foto-2-p.jpg" srcset="images/foto-2-p.jpg 900w, images/foto-2.jpg 1600w"
+                     sizes="(min-width: 900px) 810px, 78vw"
+                     width="900" height="600" loading="lazy" draggable="false"
+                     alt="Churrasqueira de tijolinho com balcão, banquetas, pia e geladeira">
+                <span class="lux-zoom" aria-hidden="true"><svg class="icon"><use href="#i-expand"/></svg></span>
+              </button>
+            </li>
+            <li class="lux-slide is-tall">
+              <button class="lux-photo" type="button" data-full="images/foto-5.jpg" data-titulo="Sala de jogos" aria-label="Ampliar foto da sala de jogos">
+                <img src="images/foto-5-p.jpg" srcset="images/foto-5-p.jpg 600w, images/foto-5.jpg 1066w"
+                     sizes="(min-width: 900px) 360px, 42vw"
+                     width="600" height="900" loading="lazy" draggable="false"
+                     alt="Sala de jogos com mesa de pebolim, TV e beliche">
+                <span class="lux-zoom" aria-hidden="true"><svg class="icon"><use href="#i-expand"/></svg></span>
+              </button>
+            </li>
+            <li class="lux-slide is-wide">
+              <button class="lux-photo" type="button" data-full="images/foto-4.jpg" data-titulo="Piscina infantil" aria-label="Ampliar foto da piscina infantil">
+                <img src="images/foto-4-p.jpg" srcset="images/foto-4-p.jpg 900w, images/foto-4.jpg 1600w"
+                     sizes="(min-width: 900px) 810px, 78vw"
+                     width="900" height="600" loading="lazy" draggable="false"
+                     alt="Piscina infantil, com a piscina maior ao fundo">
+                <span class="lux-zoom" aria-hidden="true"><svg class="icon"><use href="#i-expand"/></svg></span>
+              </button>
+            </li>
+            <li class="lux-slide is-wide">
+              <button class="lux-photo" type="button" data-full="images/foto-3.jpg" data-titulo="Rede e ombrelone" aria-label="Ampliar foto da rede e do ombrelone">
+                <img src="images/foto-3-p.jpg" srcset="images/foto-3-p.jpg 900w, images/foto-3.jpg 1600w"
+                     sizes="(min-width: 900px) 810px, 78vw"
+                     width="900" height="600" loading="lazy" draggable="false"
+                     alt="Rede e ombrelone ao lado da piscina infantil">
+                <span class="lux-zoom" aria-hidden="true"><svg class="icon"><use href="#i-expand"/></svg></span>
+              </button>
+            </li>
+            <li class="lux-slide is-tall">
+              <button class="lux-photo" type="button" data-full="images/foto-6.jpg" data-titulo="Banheiros" aria-label="Ampliar foto dos banheiros">
+                <img src="images/foto-6-p.jpg" srcset="images/foto-6-p.jpg 600w, images/foto-6.jpg 1066w"
+                     sizes="(min-width: 900px) 360px, 42vw"
+                     width="600" height="900" loading="lazy" draggable="false"
+                     alt="Corredor dos banheiros, com placa de banheiro acessível">
+                <span class="lux-zoom" aria-hidden="true"><svg class="icon"><use href="#i-expand"/></svg></span>
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Legenda, miniaturas e setas. As miniaturas são criadas pelo script.js. -->
+        <div class="container lux-bar">
+          <div class="lux-caption" id="galeria-legenda">
+            <p class="lux-count"><span id="galeria-atual">01</span><small id="galeria-total">/ 06</small></p>
+            <p class="lux-title" id="galeria-titulo">Piscina com cascata</p>
+          </div>
+          <div class="lux-thumbs" id="galeria-miniaturas" role="group" aria-label="Escolher foto"></div>
+          <div class="lux-nav">
+            <button class="lux-btn lux-btn-sm" id="galeria-pausa" type="button" aria-label="Pausar a apresentação das fotos">
+              <svg class="icon" aria-hidden="true"><use href="#i-pause"/></svg>
+            </button>
+            <button class="lux-btn" id="galeria-anterior" type="button" aria-label="Foto anterior">
+              <svg class="icon" aria-hidden="true"><use href="#i-chevron-left"/></svg>
+            </button>
+            <button class="lux-btn" id="galeria-proxima" type="button" aria-label="Próxima foto">
+              <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -486,7 +534,10 @@
     <button class="lb-btn lb-next" type="button" aria-label="Próxima foto">
       <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>
     </button>
-    <p class="lb-count" aria-live="polite"></p>
+    <div class="lb-caption" aria-live="polite">
+      <p class="lb-title"></p>
+      <p class="lb-count"></p>
+    </div>
   </dialog>
 
 </body>

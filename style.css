@@ -28,9 +28,15 @@
 
   --wa: #25d366;
 
+  /* Dourado usado só na galeria e na foto ampliada */
+  --gold:       #dcb96c;
+  --gold-light: #f4e3b1;
+  --gold-deep:  #b98f3a;
+
   --radius: 20px;
   --shadow: 0 24px 46px -24px rgba(4, 38, 30, .38);
   --ease: cubic-bezier(.2, .7, .2, 1);
+  --ease-lux: cubic-bezier(.25, .8, .25, 1);
   --container: 1160px;
 
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
@@ -840,67 +846,412 @@ h1 em, h2 em, .statement-text em { font-style: italic; font-weight: 500; }
   color: var(--g-100);
 }
 
-/* ---------- Galeria ---------- */
-/* Celular: 2 colunas. A partir do tablet: mosaico de 6 colunas. */
-.gallery {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-areas:
-    "a a"
-    "d e"
-    "b b"
-    "c f";
-  gap: 10px;
+/* ---------- Galeria (carrossel) ---------- */
+/* Seção escura com detalhes dourados. A foto do centro fica em destaque e as
+   vizinhas aparecem esmaecidas dos lados. Sem JavaScript vira uma fileira de
+   fotos que rola para o lado. */
+.section-fotos {
+  position: relative;
+  overflow: hidden;
+  overflow: clip;
+  color: var(--white);
+  background:
+    radial-gradient(60% 46% at 50% 0%, rgba(220, 185, 108, .08), transparent 72%),
+    radial-gradient(46% 50% at 100% 100%, rgba(63, 199, 154, .13), transparent 72%),
+    linear-gradient(180deg, var(--g-950), #021912 55%, var(--g-950));
 }
 
-.g-a { grid-area: a; aspect-ratio: 3 / 2; }
-.g-b { grid-area: b; aspect-ratio: 3 / 2; }
-.g-c { grid-area: c; aspect-ratio: 2 / 3; }
-.g-d { grid-area: d; aspect-ratio: 3 / 2; }
-.g-e { grid-area: e; aspect-ratio: 3 / 2; }
-.g-f { grid-area: f; aspect-ratio: 2 / 3; }
-
-@media (min-width: 640px) {
-  .gallery {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    grid-template-areas:
-      "a a a b b b"
-      "c c d d f f"
-      "c c e e f f";
-    gap: 16px;
-  }
-
-  /* As duas fotos do meio dividem a altura das fotos em pé ao lado */
-  .g-d, .g-e { aspect-ratio: auto; }
+/* Fio dourado no alto da seção */
+.section-fotos::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: min(72%, 620px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  transform: translateX(-50%);
 }
 
-.gallery-item {
+.section-fotos .section-head { margin-bottom: clamp(18px, 3vw, 34px); }
+
+.section-fotos .section-head .eyebrow {
+  gap: 16px;
+  font-weight: 700;
+  letter-spacing: .34em;
+  color: var(--gold);
+}
+
+.section-fotos .section-head .eyebrow::before,
+.section-fotos .section-head .eyebrow::after {
+  width: 40px;
+  height: 1px;
+  border-radius: 0;
+  background: linear-gradient(90deg, transparent, var(--gold));
+}
+
+.section-fotos .section-head .eyebrow::after { transform: scaleX(-1); }
+
+.section-fotos .section-head h2 { font-weight: 500; color: var(--white); }
+
+.section-fotos .section-head h2 em {
+  padding-right: .06em;
+  color: var(--gold);
+  background: linear-gradient(100deg, var(--gold-light), var(--gold) 55%, var(--gold-deep));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.section-fotos .lead { color: rgba(255, 255, 255, .72); }
+
+.lux {
+  --lux-h: clamp(240px, min(62vw, 56vh), 540px);
+  --lux-gap: clamp(12px, 2.2vw, 30px);
+  --lux-time: 6.5s;
+}
+
+.lux-viewport {
+  padding: 30px 0 54px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.lux-viewport::-webkit-scrollbar { display: none; }
+
+.lux-track {
+  position: relative;
+  display: flex;
+  gap: var(--lux-gap);
+  width: max-content;
+  margin: 0;
+  padding: 0 16px;
+  list-style: none;
+}
+
+.lux-slide {
+  flex: none;
+  height: var(--lux-h);
+  scroll-snap-align: center;
+}
+
+/* Todas as fotos têm a mesma altura; a largura acompanha o formato de cada uma */
+.lux-slide.is-wide { width: min(calc(var(--lux-h) * 1.5), 78vw); }
+.lux-slide.is-tall { width: calc(var(--lux-h) * 2 / 3); }
+
+.lux-photo {
   position: relative;
   display: block;
   width: 100%;
-  min-height: 0;
+  height: 100%;
   padding: 0;
   overflow: hidden;
   border: 0;
-  border-radius: 16px;
-  background: var(--sand);
-  cursor: zoom-in;
+  border-radius: 4px;
+  background: #0a3a2e;
+  box-shadow: 0 30px 50px -34px rgba(0, 0, 0, .9);
+  cursor: pointer;
+  transition:
+    transform 1s var(--ease-lux),
+    opacity 1s var(--ease-lux),
+    box-shadow 1s var(--ease-lux);
 }
 
-.gallery-item img {
+.lux-photo img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform .9s var(--ease), opacity .6s ease;
+  transition: transform 1.4s var(--ease-lux), opacity .6s ease;
 }
 
 /* A foto surge suavemente quando termina de carregar */
-.js .gallery-item:not(.is-loaded) img { opacity: 0; }
+.js .lux-photo:not(.is-loaded) img { opacity: 0; }
+
+/* Moldura fina dourada por dentro da foto em destaque */
+.lux-photo::before {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  z-index: 2;
+  border: 1px solid rgba(244, 227, 177, .6);
+  border-radius: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .9s var(--ease-lux), inset .9s var(--ease-lux);
+}
+
+.lux-zoom {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(244, 227, 177, .7);
+  border-radius: 50%;
+  background: rgba(4, 38, 30, .55);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: var(--gold-light);
+  font-size: 18px;
+  opacity: 0;
+  transform: scale(.8);
+  transition:
+    opacity .7s var(--ease-lux),
+    transform .7s var(--ease-lux),
+    background-color .3s ease,
+    color .3s ease;
+}
+
+/* Com o carrossel ligado pelo script */
+.lux.is-ready .lux-viewport {
+  overflow: hidden;
+  cursor: grab;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.lux.is-ready .lux-track {
+  padding: 0;
+  will-change: transform;
+  transition: transform 1s var(--ease-lux);
+}
+
+.lux.is-dragging .lux-viewport { cursor: grabbing; }
+
+.lux.is-ready .lux-slide:not(.is-active) .lux-photo {
+  opacity: .4;
+  transform: scale(.9);
+}
+
+.lux.is-ready .lux-slide.is-active .lux-photo {
+  box-shadow:
+    0 0 0 1px rgba(220, 185, 108, .45),
+    0 44px 70px -38px rgba(0, 0, 0, .95),
+    0 0 90px -30px rgba(220, 185, 108, .3);
+  cursor: zoom-in;
+}
+
+.lux.is-dragging .lux-slide.is-active .lux-photo { cursor: grabbing; }
+
+.lux.is-ready .lux-slide.is-active .lux-photo::before { inset: 10px; opacity: 1; }
+.lux.is-ready .lux-slide.is-active .lux-zoom { opacity: 1; transform: none; }
+
+/* A foto em destaque se aproxima bem devagar */
+.lux.is-ready .lux-slide.is-active img {
+  transform: scale(1.07);
+  transition: transform 9s linear, opacity .6s ease;
+}
 
 @media (hover: hover) {
-  .gallery-item:hover img { transform: scale(1.05); }
+  .lux-slide.is-active .lux-photo:hover .lux-zoom { background: var(--gold); color: var(--g-950); }
+}
+
+/* Nas telas largas as fotos somem suavemente nas bordas */
+@media (min-width: 900px) {
+  .lux.is-ready .lux-viewport {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+  }
+}
+
+/* Legenda, miniaturas e setas */
+html:not(.js) .lux-bar { display: none; }
+
+.lux-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "legenda setas"
+    "minis   minis";
+  align-items: center;
+  gap: 30px 16px;
+}
+
+.lux-caption {
+  grid-area: legenda;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lux-caption.is-changing { animation: lux-caption .8s var(--ease-lux); }
+
+@keyframes lux-caption {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.lux-count {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 2.1rem;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--gold);
+}
+
+.lux-count small {
+  font-family: var(--font-body);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .24em;
+  color: rgba(255, 255, 255, .55);
+}
+
+.lux-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 2.2vw, 1.55rem);
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.lux-thumbs {
+  grid-area: minis;
+  display: flex;
+  justify-content: center;
+  gap: clamp(8px, 2.4vw, 14px);
+  padding-bottom: 14px;
+}
+
+.lux-thumb {
+  position: relative;
+  flex: 0 1 60px;
+  min-width: 0;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: #0a3a2e;
+  cursor: pointer;
+}
+
+.lux-thumb img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  opacity: .5;
+  transition: opacity .5s ease;
+}
+
+.lux-thumb::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 1px solid var(--gold);
+  border-radius: 5px;
+  opacity: 0;
+  transform: scale(.9);
+  transition: opacity .5s ease, transform .5s var(--ease-lux);
+}
+
+.lux-thumb.is-active img { opacity: 1; }
+.lux-thumb.is-active::before { opacity: 1; transform: none; }
+
+@media (hover: hover) {
+  .lux-thumb:hover img { opacity: 1; }
+}
+
+/* Barrinha embaixo da miniatura: enche enquanto a foto está em destaque */
+.lux-thumb-bar {
+  position: absolute;
+  inset: auto 0 -14px;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .16);
+}
+
+.lux-thumb-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--gold-deep), var(--gold-light));
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
+
+.lux-thumb.is-active .lux-thumb-bar::after { transform: scaleX(1); }
+
+.lux.is-playing .lux-thumb.is-active .lux-thumb-bar::after {
+  animation: lux-fill var(--lux-time) linear both;
+}
+
+.lux.is-playing.is-held .lux-thumb.is-active .lux-thumb-bar::after { animation-play-state: paused; }
+
+@keyframes lux-fill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.lux-nav {
+  grid-area: setas;
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 10px;
+}
+
+.lux-btn {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid rgba(220, 185, 108, .6);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--gold-light);
+  font-size: 22px;
+  cursor: pointer;
+  transition:
+    background-color .35s ease,
+    border-color .35s ease,
+    color .35s ease,
+    transform .35s var(--ease-lux);
+}
+
+.lux-btn:active { transform: scale(.94); }
+
+.lux-btn-sm {
+  width: 38px;
+  height: 38px;
+  border-color: rgba(255, 255, 255, .22);
+  color: rgba(255, 255, 255, .8);
+  font-size: 17px;
+}
+
+@media (hover: hover) {
+  .lux-btn:hover {
+    border-color: var(--gold);
+    background: var(--gold);
+    color: var(--g-950);
+  }
+}
+
+@media (min-width: 960px) {
+  .lux-bar {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-areas: "legenda minis setas";
+    gap: 32px;
+  }
+
+  .lux-count { font-size: 2.7rem; }
+  .lux-thumb { flex-basis: 64px; }
+  .lux-btn { width: 54px; height: 54px; }
+  .lux-btn-sm { width: 40px; height: 40px; }
 }
 
 @keyframes fade-in {
@@ -1384,7 +1735,9 @@ html:not(.js) .section-avaliacoes { display: none; }
   padding: 0;
   border: 0;
   color: var(--white);
-  background: rgba(3, 22, 17, .95);
+  background:
+    radial-gradient(60% 50% at 50% 0%, rgba(220, 185, 108, .1), transparent 70%),
+    rgba(2, 16, 12, .97);
 }
 
 .lightbox[open] {
@@ -1402,10 +1755,12 @@ html:has(.lightbox[open]) { overflow: hidden; }
   width: auto;
   height: auto;
   max-width: min(92vw, 1400px);
-  max-height: 82vh;
-  border-radius: 12px;
+  max-height: 76vh;
+  border-radius: 4px;
   object-fit: contain;
-  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .7);
+  box-shadow:
+    0 0 0 1px rgba(220, 185, 108, .45),
+    0 40px 90px -30px rgba(0, 0, 0, .9);
 }
 
 .lb-btn {
@@ -1415,35 +1770,48 @@ html:has(.lightbox[open]) { overflow: hidden; }
   width: 52px;
   height: 52px;
   padding: 0;
-  border: 0;
+  border: 1px solid rgba(220, 185, 108, .6);
   border-radius: 50%;
-  background: rgba(255, 255, 255, .14);
-  color: var(--white);
-  font-size: 26px;
+  background: rgba(4, 38, 30, .6);
+  color: var(--gold-light);
+  font-size: 24px;
   cursor: pointer;
-  transition: background-color .3s ease, color .3s ease;
+  transition: background-color .3s ease, border-color .3s ease, color .3s ease;
 }
 
 @media (hover: hover) {
-  .lb-btn:hover { background: var(--sun); color: var(--ink); }
+  .lb-btn:hover { border-color: var(--gold); background: var(--gold); color: var(--g-950); }
 }
 
 .lb-close { top: 16px; right: 16px; }
 .lb-prev  { left: 16px;  top: 50%; transform: translateY(-50%); }
 .lb-next  { right: 16px; top: 50%; transform: translateY(-50%); }
 
-.lb-count {
+.lb-caption {
   position: absolute;
-  inset: auto 0 24px;
+  inset: auto 84px 20px;
   text-align: center;
-  font-size: .9rem;
-  font-weight: 600;
-  opacity: .8;
+}
+
+.lb-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 2.4vw, 1.45rem);
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.lb-count {
+  margin-top: 4px;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .24em;
+  color: var(--gold);
 }
 
 @media (max-width: 640px) {
   .lb-prev, .lb-next { top: auto; bottom: 12px; transform: none; }
-  .lb-count { bottom: 28px; }
+  .lb-caption { bottom: 14px; }
 }
 
 /* ---------- Carregamento (esqueleto) ---------- */
@@ -1470,7 +1838,7 @@ html:has(.lightbox[open]) { overflow: hidden; }
 .js .map:not(.is-loaded) { background: #e9e4d8; }
 
 .sk::after,
-.js .gallery-item:not(.is-loaded)::after,
+.js .lux-photo:not(.is-loaded)::after,
 .js .map:not(.is-loaded)::before {
   content: "";
   position: absolute;
@@ -1478,6 +1846,11 @@ html:has(.lightbox[open]) { overflow: hidden; }
   background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, .7) 50%, transparent 80%);
   transform: translateX(-100%);
   animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* Na galeria escura o brilho do esqueleto é dourado e discreto */
+.js .lux-photo:not(.is-loaded)::after {
+  background: linear-gradient(100deg, transparent 20%, rgba(244, 227, 177, .16) 50%, transparent 80%);
 }
 
 @keyframes shimmer { to { transform: translateX(100%); } }
