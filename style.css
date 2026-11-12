@@ -82,6 +82,16 @@ h1 em, h2 em, .statement-text em { font-style: italic; font-weight: 500; }
 
 [hidden] { display: none !important; }
 
+/* Texto só para leitores de tela */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 ::selection { background: var(--sun); color: var(--ink); }
 
 :focus-visible {
@@ -518,19 +528,6 @@ h1 em, h2 em, .statement-text em { font-style: italic; font-weight: 500; }
   50%      { opacity: 1;   transform: scale(1) rotate(45deg); }
 }
 
-.arch-photo {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity 1.1s ease;
-}
-
-.arch-photo.is-loaded { opacity: 1; }
-
 /* Selo giratório */
 .badge {
   position: absolute;
@@ -681,18 +678,6 @@ h1 em, h2 em, .statement-text em { font-style: italic; font-weight: 500; }
   color: var(--muted);
 }
 
-.section-head.split { display: grid; gap: 18px; }
-
-@media (min-width: 860px) {
-  .section-head.split {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
-    align-items: end;
-    gap: 64px;
-  }
-
-  .section-head.split .lead { padding-bottom: 6px; }
-}
-
 .section-head.center {
   max-width: 680px;
   margin-inline: auto;
@@ -709,84 +694,6 @@ h1 em, h2 em, .statement-text em { font-style: italic; font-weight: 500; }
 }
 
 .section-head.center .lead { margin-top: 16px; }
-
-/* ---------- Estrutura ---------- */
-.amenities {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
-}
-
-@media (min-width: 640px) {
-  .amenities { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (min-width: 1000px) {
-  .amenities { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
-.amenity {
-  padding: 32px 28px 34px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--white);
-  transition: transform .45s var(--ease), box-shadow .45s var(--ease), border-color .45s ease;
-}
-
-.amenity-icon {
-  width: 60px;
-  height: 60px;
-  padding: 15px;
-  border-radius: 18px;
-  background: var(--g-50);
-  color: var(--g-700);
-  transition: background-color .4s ease, color .4s ease, transform .45s var(--ease);
-}
-
-.amenity h3 {
-  margin: 22px 0 8px;
-  font-size: 1.42rem;
-  color: var(--g-900);
-}
-
-.amenity p { font-size: 1rem; color: var(--muted); }
-
-/* No celular os cartões ficam compactos: ícone ao lado do texto */
-@media (max-width: 639px) {
-  .amenities { gap: 12px; }
-
-  .amenity {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    column-gap: 16px;
-    padding: 20px 18px;
-  }
-
-  .amenity-icon {
-    grid-row: span 2;
-    width: 52px;
-    height: 52px;
-    padding: 13px;
-    border-radius: 16px;
-  }
-
-  .amenity h3 { margin: 2px 0 4px; font-size: 1.22rem; }
-  .amenity p { font-size: .96rem; line-height: 1.5; }
-}
-
-@media (hover: hover) {
-  .amenity:hover {
-    transform: translateY(-6px);
-    border-color: transparent;
-    box-shadow: var(--shadow);
-  }
-
-  .amenity:hover .amenity-icon {
-    background: var(--g-700);
-    color: var(--white);
-    transform: rotate(-6deg) scale(1.06);
-  }
-}
 
 /* ---------- Frase de destaque ---------- */
 .statement {
@@ -902,7 +809,7 @@ h1 em, h2 em, .statement-text em { font-style: italic; font-weight: 500; }
 .section-fotos .lead { color: rgba(255, 255, 255, .72); }
 
 .lux {
-  --lux-h: clamp(240px, min(66vw, 56vh), 540px);
+  --lux-h: clamp(240px, min(66vw, 50vh), 540px);
   --lux-gap: clamp(12px, 2.2vw, 30px);
   --car-time: 6.5s;
 }
@@ -1058,37 +965,76 @@ h1 em, h2 em, .statement-text em { font-style: italic; font-weight: 500; }
   }
 }
 
-/* Legenda, miniaturas e setas */
-html:not(.js) .lux-bar,
-.lux.is-static .lux-bar { display: none; }
+/* Contador, legendas, miniaturas e setas.
+   Sem o carrossel (sem JavaScript) ficam só as legendas, em lista. */
+.lux-count,
+.lux-thumbs,
+.lux-nav { display: none; }
 
-.lux-bar {
+.lux-captions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 26px 34px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lux-captions h3 {
+  font-size: clamp(1.35rem, 2.6vw, 1.7rem);
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--white);
+}
+
+.lux-captions p {
+  max-width: 54ch;
+  margin-top: 8px;
+  font-size: .98rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, .74);
+}
+
+/* Com o carrossel ligado: uma legenda por vez, trocando junto com a foto */
+.lux.is-ready .lux-bar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
-    "legenda setas"
+    "conta   setas"
+    "legenda legenda"
     "minis   minis";
   align-items: center;
-  gap: 30px 16px;
+  gap: 16px;
 }
 
-.lux-caption {
+.lux.is-ready .lux-count { grid-area: conta; display: flex; }
+.lux.is-ready .lux-nav { grid-area: setas; display: flex; }
+.lux.is-ready .lux-thumbs { grid-area: minis; display: flex; margin-top: 14px; }
+
+.lux.is-ready .lux-captions {
   grid-area: legenda;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
 }
 
-.lux-caption.is-changing { animation: lux-caption .8s var(--ease-lux); }
+/* As legendas ocupam o mesmo lugar, então a altura não muda na troca */
+.lux.is-ready .lux-captions > li {
+  grid-area: 1 / 1;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(12px);
+  transition: opacity .3s ease, transform .3s ease, visibility 0s .3s;
+}
 
-@keyframes lux-caption {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: none; }
+.lux.is-ready .lux-captions > li.is-active {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity .8s var(--ease-lux) .25s, transform .8s var(--ease-lux) .25s, visibility 0s;
 }
 
 .lux-count {
-  display: flex;
   align-items: baseline;
   gap: 10px;
   font-family: var(--font-display);
@@ -1106,17 +1052,7 @@ html:not(.js) .lux-bar,
   color: rgba(255, 255, 255, .55);
 }
 
-.lux-title {
-  font-family: var(--font-display);
-  font-size: clamp(1.15rem, 2.2vw, 1.55rem);
-  font-style: italic;
-  font-weight: 500;
-  line-height: 1.25;
-}
-
 .lux-thumbs {
-  grid-area: minis;
-  display: flex;
   justify-content: center;
   gap: clamp(8px, 2.4vw, 14px);
   padding-bottom: 14px;
@@ -1194,8 +1130,6 @@ html:not(.js) .lux-bar,
 }
 
 .lux-nav {
-  grid-area: setas;
-  display: flex;
   align-items: center;
   justify-self: end;
   gap: 10px;
@@ -1238,13 +1172,19 @@ html:not(.js) .lux-bar,
   }
 }
 
-@media (min-width: 960px) {
-  .lux-bar {
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    grid-template-areas: "legenda minis setas";
-    gap: 32px;
+/* Tablet e computador: texto à esquerda, miniaturas e setas à direita */
+@media (min-width: 860px) {
+  .lux.is-ready .lux-bar {
+    grid-template-areas:
+      "conta   minis"
+      "legenda setas";
+    align-items: start;
+    gap: 14px 48px;
   }
 
+  .lux.is-ready .lux-count { align-self: center; }
+  .lux.is-ready .lux-thumbs { justify-content: flex-end; margin-top: 0; }
+  .lux.is-ready .lux-nav { margin-top: 10px; }
   .lux-count { font-size: 2.7rem; }
   .lux-thumb { flex-basis: 64px; }
   .lux-btn { width: 54px; height: 54px; }
@@ -2105,15 +2045,6 @@ html:has(.lightbox[open]) { overflow: hidden; }
   border-radius: 50%;
   animation: spin .8s linear infinite;
 }
-
-/* Com a foto no arco, a esmeralda por baixo não precisa continuar animando */
-.arch:has(.arch-photo.is-loaded) .gem-art,
-.arch:has(.arch-photo.is-loaded) .spark {
-  visibility: hidden;
-  animation: none;
-}
-
-.arch:has(.arch-photo.is-loaded) .glint { animation: none; }
 
 /* ---------- Animações de entrada ---------- */
 @keyframes rise {

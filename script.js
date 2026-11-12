@@ -555,22 +555,24 @@ if (avaliacoesValidas.length) {
 }
 
 
-// Galeria de fotos em carrossel: tocar na foto em destaque amplia
+// O espaço: fotos em carrossel, cada uma com a sua legenda (título e texto, na
+// mesma ordem das fotos). Tocar na foto em destaque amplia.
 const galeria = document.getElementById("galeria");
 const galTrilho = galeria.querySelector(".lux-track");
-const galLegenda = document.getElementById("galeria-legenda");
+const galLegendas = Array.from(document.getElementById("galeria-legendas").children);
+const galAnuncio = document.getElementById("galeria-anuncio");
 const galAtual = document.getElementById("galeria-atual");
-const galTitulo = document.getElementById("galeria-titulo");
 const galMinis = document.getElementById("galeria-miniaturas");
 
-const fotos = Array.from(galTrilho.children).map((slide) => {
+const fotos = Array.from(galTrilho.children).map((slide, indice) => {
   const botao = slide.querySelector(".lux-photo");
   const img = botao.querySelector("img");
+  const legenda = galLegendas[indice];
   return {
     src: botao.dataset.full || img.src,
     mini: img.getAttribute("src"),
     alt: img.alt,
-    titulo: botao.dataset.titulo || "",
+    titulo: legenda ? legenda.querySelector("h3").textContent : "",
   };
 });
 
@@ -606,7 +608,7 @@ const carGaleria = criarCarrossel({
   proxima: document.getElementById("galeria-proxima"),
   pausa: document.getElementById("galeria-pausa"),
   oQue: "das fotos",
-  aoVivo: galLegenda,
+  aoVivo: galAnuncio,
   aoTocar: (indice) => abrirFoto(indice),
   aoTrocar: (indice, carrossel) => {
     marcarIndicadores(miniaturas, indice);
@@ -614,11 +616,15 @@ const carGaleria = criarCarrossel({
     // Só a foto em destaque entra na ordem do Tab
     carrossel.reais.forEach((slide, i) => (slide.querySelector(".lux-photo").tabIndex = i === indice ? 0 : -1));
 
+    // Só a legenda da foto em destaque aparece; as outras continuam na página, escondidas
+    galLegendas.forEach((legenda, i) => {
+      legenda.classList.toggle("is-active", i === indice);
+      if (i === indice) legenda.removeAttribute("aria-hidden");
+      else legenda.setAttribute("aria-hidden", "true");
+    });
+
     galAtual.textContent = doisDigitos(indice + 1);
-    galTitulo.textContent = fotos[indice].titulo;
-    galLegenda.classList.remove("is-changing");
-    void galLegenda.offsetWidth;
-    galLegenda.classList.add("is-changing");
+    galAnuncio.textContent = "Foto " + (indice + 1) + " de " + fotos.length + ": " + fotos[indice].titulo;
   },
 });
 
