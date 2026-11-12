@@ -96,6 +96,193 @@ window.addEventListener("scroll", aoRolar, { passive: true });
 document.getElementById("ano").textContent = new Date().getFullYear();
 
 
+// Esmeralda do topo girando em 3D
+// A pedra é um sólido de verdade (lapidação esmeralda: mesa, coroa, cintura e
+// pavilhão), desenhado em um <canvas> a cada quadro. Ela gira devagar em torno
+// de um eixo inclinado, e cada faceta clareia ou escurece conforme fica de
+// frente para a luz. Não usa biblioteca nenhuma, e para de desenhar quando o
+// topo sai da tela. Sem JavaScript, ou para quem prefere menos movimento, fica
+// o desenho parado que está no HTML.
+(function () {
+  const palco = document.querySelector(".gem-stage");
+  const tela = palco && palco.querySelector(".gem-canvas");
+  const ctx = tela && tela.getContext && tela.getContext("2d");
+  if (!ctx || semMovimento) return;
+
+  const VOLTA = 18000;                  // tempo de uma volta, em milissegundos
+  const INCLINACAO = 20 * Math.PI / 180; // eixo de giro tombado para o lado
+  const DE_FRENTE = 12 * Math.PI / 180;  // e um pouco para a frente
+  const CAMERA = 1100;                   // distância da câmera (perspectiva suave)
+
+  // A pedra em fatias, da frente para trás. Cada fatia é um octógono:
+  // [meia largura, meia altura, chanfro do canto, profundidade]
+  const FATIAS = [
+    [65, 105, 25, 62],     // mesa (a face da frente)
+    [105, 145, 42, 38],    // degrau da coroa
+    [140, 180, 60, 6],     // cintura
+    [140, 180, 60, -6],
+    [100, 140, 40, -48],   // degraus do pavilhão
+    [50, 95, 18, -92],
+    [12, 58, 5, -114],     // quilha (a face de trás)
+  ];
+
+  const pontos = [];
+  FATIAS.forEach(([a, b, c, z]) => {
+    pontos.push(
+      [-a + c, -b, z], [a - c, -b, z], [a, -b + c, z], [a, b - c, z],
+      [a - c, b, z], [-a + c, b, z], [-a, b - c, z], [-a, -b + c, z]
+    );
+  });
+
+  // Faces: a mesa, os degraus entre uma fatia e a seguinte, e a quilha
+  const faces = [[0, 1, 2, 3, 4, 5, 6, 7]];
+  for (let f = 0; f < FATIAS.length - 1; f++) {
+    for (let i = 0; i < 8; i++) {
+      const j = (i + 1) % 8;
+      faces.push([f * 8 + i, f * 8 + j, (f + 1) * 8 + j, (f + 1) * 8 + i]);
+    }
+  }
+  const ultima = (FATIAS.length - 1) * 8;
+  faces.push([7, 6, 5, 4, 3, 2, 1, 0].map((i) => ultima + i));
+
+  const unitario = (v) => {
+    const m = Math.hypot(v[0], v[1], v[2]) || 1;
+    return [v[0] / m, v[1] / m, v[2] / m];
+  };
+  const escalar = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+  // Para cada face, a direção para onde ela aponta (para fora da pedra)
+  const normais = faces.map((face) => {
+    const [p, q, r] = [pontos[face[0]], pontos[face[1]], pontos[face[2]]];
+    const u = [q[0] - p[0], q[1] - p[1], q[2] - p[2]];
+    const v = [r[0] - p[0], r[1] - p[1], r[2] - p[2]];
+    const n = unitario([u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]);
+    const centro = face.reduce((s, i) => [s[0] + pontos[i][0], s[1] + pontos[i][1], s[2] + pontos[i][2]], [0, 0, 0]);
+    return escalar(n, centro) < 0 ? [-n[0], -n[1], -n[2]] : n;
+  });
+
+  // Luz principal (de cima, à esquerda), luz de apoio e direção do reflexo
+  const LUZ = unitario([-0.45, -0.65, 0.62]);
+  const APOIO = unitario([0.75, 0.25, 0.4]);
+  const REFLEXO = unitario([LUZ[0], LUZ[1], LUZ[2] + 1]);
+
+  // Tons de verde, do mais escuro ao mais claro
+  const TONS = [[3, 38, 28], [7, 84, 58], [13, 146, 100], [38, 226, 166], [176, 255, 231]];
+
+  function cor(claridade, reflexo, alfa) {
+    const x = Math.max(0, Math.min(1, claridade)) * (TONS.length - 1);
+    const i = Math.min(TONS.length - 2, Math.floor(x));
+    const t = x - i;
+    const canal = (k) => {
+      const base = TONS[i][k] + (TONS[i + 1][k] - TONS[i][k]) * t;
+      return Math.round(base + (255 - base) * reflexo);
+    };
+    return "rgba(" + canal(0) + "," + canal(1) + "," + canal(2) + "," + alfa + ")";
+  }
+
+  let largura = 0;
+  let altura = 0;
+  let escala = 1;
+
+  function medir() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    largura = Math.round(palco.clientWidth * dpr);
+    altura = Math.round(palco.clientHeight * dpr);
+    tela.width = largura;
+    tela.height = altura;
+    escala = altura / 490;   // a pedra, inclinada, ocupa uns 90% da altura
+    desenhar(performance.now());
+  }
+
+  const girados = pontos.map(() => [0, 0, 0]);
+  const naTela = pontos.map(() => [0, 0]);
+  const normaisGiradas = faces.map(() => [0, 0, 0]);
+  const deFrente = faces.map(() => false);
+
+  function desenhar(agora) {
+    const giro = agora / VOLTA * Math.PI * 2 - 0.5;
+    const [cg, sg] = [Math.cos(giro), Math.sin(giro)];
+    const [cf, sf] = [Math.cos(DE_FRENTE), Math.sin(DE_FRENTE)];
+    const [ci, si] = [Math.cos(INCLINACAO), Math.sin(INCLINACAO)];
+
+    // Gira em torno do eixo da pedra e depois tomba o eixo
+    const girar = (p) => {
+      const x1 = p[0] * cg + p[2] * sg;
+      const z1 = -p[0] * sg + p[2] * cg;
+      const y2 = p[1] * cf - z1 * sf;
+      const z2 = p[1] * sf + z1 * cf;
+      return [x1 * ci - y2 * si, x1 * si + y2 * ci, z2];
+    };
+
+    pontos.forEach((p, i) => {
+      const g = girar(p);
+      const perto = CAMERA / (CAMERA - g[2]);
+      girados[i] = g;
+      naTela[i][0] = largura / 2 + g[0] * perto * escala;
+      naTela[i][1] = altura / 2 + g[1] * perto * escala;
+    });
+
+    ctx.clearRect(0, 0, largura, altura);
+    ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(1, escala * 1.6);
+
+    faces.forEach((face, f) => {
+      const n = girar(normais[f]);
+      const p = girados[face[0]];
+      normaisGiradas[f] = n;
+      deFrente[f] = n[0] * -p[0] + n[1] * -p[1] + n[2] * (CAMERA - p[2]) > 0;
+    });
+
+    // Primeiro as faces de trás, vistas através da pedra; depois as da frente
+    for (const frente of [false, true]) {
+      faces.forEach((face, f) => {
+        if (deFrente[f] !== frente) return;
+
+        const n = normaisGiradas[f];
+        const lado = frente ? 1 : -1;
+        const luz = Math.max(0, escalar(n, LUZ) * lado);
+        const apoio = Math.max(0, escalar(n, APOIO) * lado);
+        const reflexo = frente ? Math.pow(Math.max(0, escalar(n, REFLEXO)), 26) * 0.85 : 0;
+        const claridade = frente ? 0.14 + 0.78 * luz + 0.26 * apoio : 0.03 + 0.34 * luz + 0.1 * apoio;
+
+        ctx.beginPath();
+        face.forEach((i, k) => (k ? ctx.lineTo(naTela[i][0], naTela[i][1]) : ctx.moveTo(naTela[i][0], naTela[i][1])));
+        ctx.closePath();
+        ctx.fillStyle = cor(claridade, reflexo, frente ? 0.84 : 1);
+        ctx.fill();
+        ctx.strokeStyle = frente ? "rgba(228, 251, 241, " + (0.34 + 0.4 * luz) + ")" : "rgba(228, 251, 241, 0.1)";
+        ctx.stroke();
+      });
+    }
+  }
+
+  // Só desenha enquanto o topo está na tela
+  let naVista = true;
+  let quadro = 0;
+
+  function ciclo(agora) {
+    quadro = 0;
+    if (!naVista) return;
+    desenhar(agora);
+    quadro = requestAnimationFrame(ciclo);
+  }
+
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(([entrada]) => {
+      naVista = entrada.isIntersecting;
+      if (naVista && !quadro) quadro = requestAnimationFrame(ciclo);
+    }).observe(palco);
+  }
+
+  if ("ResizeObserver" in window) new ResizeObserver(medir).observe(palco);
+  else window.addEventListener("resize", medir);
+
+  medir();
+  palco.classList.add("is-3d");
+  quadro = requestAnimationFrame(ciclo);
+})();
+
+
 // Faixa de ocasiões: duplica a lista para correr sem emendas
 const faixa = document.querySelector(".marquee-track");
 

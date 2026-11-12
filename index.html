@@ -122,10 +122,12 @@
           </ul>
         </div>
 
-        <!-- Moldura em arco com a esmeralda -->
-        <div class="hero-art">
-          <div class="arch">
-            <svg class="gem-art" viewBox="0 0 300 380" aria-hidden="true">
+        <!-- Esmeralda. O desenho abaixo é a versão parada: aparece sem JavaScript e para
+             quem prefere menos movimento. Com JavaScript, o script.js desenha no <canvas>
+             a esmeralda girando em 3D e este desenho some. -->
+        <div class="hero-art" aria-hidden="true">
+          <div class="gem-stage">
+            <svg class="gem-art" viewBox="0 0 300 380">
               <defs>
                 <linearGradient id="gem-table" x1="0" y1="0" x2="1" y2="1">
                   <stop offset="0" stop-color="#2ff5b5"/>
@@ -155,19 +157,13 @@
               <path class="glint" d="M110 85h34L85 190v-80z" fill="#fff"/>
               <path class="glint glint-2" d="M215 200v70l-25 25h-30z" fill="#fff"/>
             </svg>
-            <svg class="spark spark-1" aria-hidden="true"><use href="#spark"/></svg>
-            <svg class="spark spark-2" aria-hidden="true"><use href="#spark"/></svg>
-            <svg class="spark spark-3" aria-hidden="true"><use href="#spark"/></svg>
-          </div>
-
-          <div class="badge" aria-hidden="true">
-            <svg class="badge-ring" viewBox="0 0 120 120">
-              <defs>
-                <path id="badge-path" d="M60 60m-44 0a44 44 0 1 1 88 0a44 44 0 1 1-88 0"/>
-              </defs>
-              <text><textPath href="#badge-path" textLength="270">ESPAÇO DE LAZER ESMERALDA · RIBEIRÃO PRETO ·</textPath></text>
-            </svg>
-            <svg class="badge-gem"><use href="#gem"/></svg>
+            <canvas class="gem-canvas"></canvas>
+            <svg class="spark spark-1"><use href="#spark"/></svg>
+            <svg class="spark spark-2"><use href="#spark"/></svg>
+            <svg class="spark spark-3"><use href="#spark"/></svg>
+            <svg class="spark spark-4"><use href="#spark"/></svg>
+            <svg class="spark spark-5"><use href="#spark"/></svg>
+            <svg class="spark spark-6"><use href="#spark"/></svg>
           </div>
         </div>
 
