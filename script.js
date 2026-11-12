@@ -13,6 +13,7 @@ const WHATSAPP_MENSAGEM =
 // Avaliações do Google Maps. Copie o texto EXATAMENTE como está no Google,
 // sem alterar nem inventar. A ordem aqui não importa: o site mostra da melhor
 // nota para a pior e, com a mesma nota, primeiro as de comentário mais longo.
+// Com três ou mais avaliações elas passam em carrossel.
 // Modelo ("quando" é opcional, por exemplo "em 2024"):
 //   { nome: "Nome da pessoa", estrelas: 5, texto: "Texto da avaliação.", quando: "" },
 const AVALIACOES = [
@@ -22,32 +23,41 @@ const AVALIACOES = [
     texto: "Amo esse lugar! Muito bem equipado e atendimento excepcional! Atualizaram com aquecedor de piscina, tá ótimo!",
   },
   {
+    nome: "João de Souza Nery",
+    estrelas: 5,
+    texto: "Muito agradável,eu indiquei para vários amigos",
+  },
+  {
+    nome: "Cláudio Vilapiano",
+    estrelas: 5,
+    texto: "Um cantinho pra lazer perfeito..",
+  },
+  {
+    nome: "Nairta Andrea Santos",
+    estrelas: 5,
+    texto: "Maravilhoso o Espaço,amei",
+  },
+  {
     nome: "Márcia Lotti",
     estrelas: 5,
     texto: "Muito agradável",
   },
-  {
-    nome: "kleber Ricardo Ramos",
-    estrelas: 4,
-    texto: "Bom",
-  },
 ];
 
-// Nota média e total de avaliações que aparecem na ficha do espaço no Google.
-// Enquanto ficarem como null, essa linha não aparece no site.
-const AVALIACOES_NOTA = null;   // exemplo: 4.8
-const AVALIACOES_TOTAL = null;  // exemplo: 12
+// Nota média e total de avaliações que aparecem na ficha do espaço no Google
+// (conferidos em novembro de 2026). Atualize quando mudarem; com null, essa
+// linha não aparece no site.
+const AVALIACOES_NOTA = 4.7;
+const AVALIACOES_TOTAL = 22;
 
-// Link do botão "Ver todas no Google". Troque pelo link da ficha do espaço no
-// Google Maps (botão Compartilhar > Copiar link) para abrir direto nas avaliações.
-const AVALIACOES_LINK =
-  "https://www.google.com/maps/search/?api=1&query=" +
-  encodeURIComponent("Espaço de lazer Esmeralda, Ribeirão Preto - SP");
+// Link do botão "Ver todas no Google": abre a ficha do espaço no Google Maps.
+const AVALIACOES_LINK = "https://www.google.com/maps?cid=6126375490193165085";
 
 /* ========================================================== */
 
 
 const semMovimento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const doisDigitos = (n) => String(n).padStart(2, "0");
 
 
 // Links do WhatsApp: todo elemento com o atributo data-whatsapp
@@ -130,16 +140,315 @@ function htmlEstrelas(nota) {
 }
 
 
+// Carrossel (usado nas fotos e nas avaliações)
+// O item do centro fica em destaque. Dá para arrastar, usar as setas (da tela
+// ou do teclado) ou os marcadores embaixo; os itens passam sozinhos e, depois
+// do último, o primeiro volta sem emendas. Para isso a fileira é montada três
+// vezes e o carrossel sempre para no grupo do meio, que é o dos itens de verdade.
+//
+// Quem marca o tempo da troca automática é o marcador do item em destaque: ele
+// tem uma barrinha com a animação "car-fill" (em style.css) e, quando ela
+// enche, vem o próximo. A barrinha para com o mouse em cima, durante o arrasto,
+// com o foco do teclado no carrossel, quando ele sai da tela e sempre que o
+// código chama segurar().
+//
+// opcoes: raiz, visor, trilho (elementos), anterior, proxima, pausa (botões),
+// oQue (texto do botão de pausa), aoVivo (elemento lido pelo leitor de tela),
+// aoTrocar(indice, carrossel) e aoTocar(indice, evento, carrossel), este para
+// o toque no item em destaque.
+function criarCarrossel(opcoes) {
+  const { raiz, visor, trilho } = opcoes;
+  const reais = Array.from(trilho.children);
+  const total = reais.length;
+  const FOCAVEIS = "a[href], button";
+
+  const carrossel = {
+    total,
+    reais,
+    slides: reais,
+    atual: 0,
+    ir() {},
+    mover() {},
+    segurar() {},
+  };
+
+  // Com um ou dois itens não há o que girar: ficam parados, lado a lado
+  if (total < 3) {
+    raiz.classList.add("is-static");
+    trilho.addEventListener("click", (e) => {
+      const slide = e.target.closest("li");
+      if (slide && opcoes.aoTocar) opcoes.aoTocar(reais.indexOf(slide), e, carrossel);
+    });
+    return carrossel;
+  }
+
+  function copiaDe(slide) {
+    const copia = slide.cloneNode(true);
+    copia.setAttribute("aria-hidden", "true");
+    copia.querySelectorAll(FOCAVEIS).forEach((el) => (el.tabIndex = -1));
+    return copia;
+  }
+
+  trilho.prepend(...reais.map(copiaDe));
+  trilho.append(...reais.map(copiaDe));
+
+  const slides = Array.from(trilho.children);
+  carrossel.slides = slides;
+
+  let pos = total;    // posição na fileira triplicada
+  let periodo = 0;    // largura de um grupo de itens
+  let atual = -1;     // item em destaque (0 = primeiro)
+
+  // Posição atual da fileira na tela, mesmo no meio de uma animação
+  function xAtual() {
+    return new DOMMatrixReadOnly(getComputedStyle(trilho).transform).m41;
+  }
+
+  // Posição da fileira que deixa o slide "p" no centro
+  function xDe(p) {
+    const slide = slides[p];
+    return visor.clientWidth / 2 - (slide.offsetLeft + slide.offsetWidth / 2);
+  }
+
+  function definirX(x, animar) {
+    trilho.style.transition = animar ? "" : "none";
+    trilho.style.transform = "translate3d(" + x + "px, 0, 0)";
+    if (!animar) void trilho.offsetWidth;
+  }
+
+  function marcar() {
+    const novo = pos % total;
+    if (novo === atual) return;
+    atual = novo;
+    carrossel.atual = novo;
+    slides.forEach((slide, i) => slide.classList.toggle("is-active", i % total === novo));
+    if (opcoes.aoTrocar) opcoes.aoTrocar(novo, carrossel);
+  }
+
+  function irPara(p, animar) {
+    // Se o destino cairia em uma cópia, a fileira primeiro salta um grupo inteiro
+    // (os itens são idênticos, então ninguém vê) e só depois desliza
+    const salto = p >= 2 * total ? -total : p < total ? total : 0;
+
+    if (salto) {
+      definirX(xAtual() - Math.sign(salto) * periodo, false);
+      p += salto;
+    }
+
+    pos = p;
+    marcar();
+    definirX(xDe(p), animar);
+  }
+
+  function mover(passos) {
+    irPara(pos + passos, true);
+  }
+
+  // Vai até o item pelo caminho mais curto
+  function ir(indice) {
+    let passos = indice - (pos % total);
+    if (passos > total / 2) passos -= total;
+    if (passos < -total / 2) passos += total;
+    if (passos) mover(passos);
+  }
+
+  function medir() {
+    periodo = slides[total].offsetLeft - slides[0].offsetLeft;
+    definirX(xDe(pos), false);
+  }
+
+  raiz.classList.add("is-ready");
+  medir();
+  marcar();
+
+  if ("ResizeObserver" in window) {
+    new ResizeObserver(medir).observe(visor);
+  } else {
+    window.addEventListener("resize", medir);
+  }
+
+  // O foco do teclado em um item não pode deslocar a fileira por conta própria
+  visor.addEventListener("scroll", () => {
+    if (visor.scrollLeft) visor.scrollLeft = 0;
+  });
+
+  if (opcoes.anterior) opcoes.anterior.addEventListener("click", () => mover(-1));
+  if (opcoes.proxima) opcoes.proxima.addEventListener("click", () => mover(1));
+
+  raiz.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const focoNoItem = trilho.contains(document.activeElement);
+    mover(e.key === "ArrowRight" ? 1 : -1);
+    if (!focoNoItem) return;
+    const alvo = reais[atual].querySelector(FOCAVEIS);
+    if (alvo) alvo.focus({ preventScroll: true });
+  });
+
+  // Arrastar com o dedo ou com o mouse
+  let arrasto = null;
+  let fimDoArrasto = 0;
+
+  visor.addEventListener("dragstart", (e) => e.preventDefault());
+
+  visor.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    arrasto = { id: e.pointerId, inicio: e.clientX, base: 0, andou: 0, ativo: false };
+  });
+
+  visor.addEventListener("pointermove", (e) => {
+    if (!arrasto || e.pointerId !== arrasto.id) return;
+
+    if (!arrasto.ativo) {
+      // O botão do mouse foi solto fora do carrossel antes de o arrasto começar
+      if (e.pointerType === "mouse" && !(e.buttons & 1)) {
+        arrasto = null;
+        return;
+      }
+
+      if (Math.abs(e.clientX - arrasto.inicio) < 8) return;
+      arrasto.ativo = true;
+      arrasto.inicio = e.clientX;
+      arrasto.base = xAtual();
+      visor.setPointerCapture(e.pointerId);
+      raiz.classList.add("is-dragging");
+      segurar("arrasto", true);
+    }
+
+    arrasto.andou = e.clientX - arrasto.inicio;
+    definirX(arrasto.base + arrasto.andou, false);
+  });
+
+  function soltarArrasto(e) {
+    if (!arrasto || e.pointerId !== arrasto.id) return;
+    const { ativo, andou } = arrasto;
+    arrasto = null;
+    if (!ativo) return;
+
+    fimDoArrasto = performance.now();
+    raiz.classList.remove("is-dragging");
+    segurar("arrasto", false);
+
+    // Para no item mais perto do centro; um arrasto curto já basta para trocar
+    const centro = visor.clientWidth / 2 - xAtual();
+    let alvo = pos;
+    let menor = Infinity;
+
+    slides.forEach((slide, i) => {
+      const distancia = Math.abs(slide.offsetLeft + slide.offsetWidth / 2 - centro);
+      if (distancia < menor) {
+        menor = distancia;
+        alvo = i;
+      }
+    });
+
+    if (alvo === pos && Math.abs(andou) > 40) alvo -= Math.sign(andou);
+    irPara(alvo, true);
+  }
+
+  visor.addEventListener("pointerup", soltarArrasto);
+  visor.addEventListener("pointercancel", soltarArrasto);
+
+  // Toque no item em destaque faz a ação dele; toque em um vizinho traz ele para o centro
+  trilho.addEventListener("click", (e) => {
+    const slide = e.target.closest("li");
+    if (!slide || performance.now() - fimDoArrasto < 350) return;
+
+    if (!slide.classList.contains("is-active")) mover(slides.indexOf(slide) - pos);
+    else if (opcoes.aoTocar) opcoes.aoTocar(atual, e, carrossel);
+  });
+
+  // Troca automática
+  let tocando = !semMovimento;
+  const esperas = new Set();
+
+  function segurar(motivo, sim) {
+    if (sim) esperas.add(motivo);
+    else esperas.delete(motivo);
+    raiz.classList.toggle("is-held", esperas.size > 0);
+  }
+
+  function atualizarPausa() {
+    raiz.classList.toggle("is-playing", tocando);
+    // Com os itens passando sozinhos, o leitor de tela não anuncia cada troca
+    if (opcoes.aoVivo) opcoes.aoVivo.setAttribute("aria-live", tocando ? "off" : "polite");
+    if (!opcoes.pausa) return;
+    opcoes.pausa.setAttribute("aria-label", (tocando ? "Pausar" : "Retomar") + " a apresentação " + opcoes.oQue);
+    opcoes.pausa.querySelector("use").setAttribute("href", tocando ? "#i-pause" : "#i-play");
+  }
+
+  if (opcoes.pausa) {
+    opcoes.pausa.hidden = semMovimento;
+    opcoes.pausa.addEventListener("click", () => {
+      tocando = !tocando;
+      atualizarPausa();
+    });
+  }
+
+  raiz.addEventListener("animationend", (e) => {
+    if (e.animationName === "car-fill") mover(1);
+  });
+
+  raiz.addEventListener("pointerenter", (e) => {
+    if (e.pointerType === "mouse") segurar("mouse", true);
+  });
+  raiz.addEventListener("pointerleave", () => segurar("mouse", false));
+
+  raiz.addEventListener("focusin", (e) => {
+    if (e.target.matches(":focus-visible")) segurar("foco", true);
+  });
+  raiz.addEventListener("focusout", () => segurar("foco", false));
+
+  if ("IntersectionObserver" in window) {
+    segurar("fora-da-tela", true);
+    new IntersectionObserver(([entrada]) => {
+      segurar("fora-da-tela", !entrada.isIntersecting);
+    }, { threshold: 0.35 }).observe(visor);
+  }
+
+  atualizarPausa();
+
+  carrossel.ir = ir;
+  carrossel.mover = mover;
+  carrossel.segurar = segurar;
+  return carrossel;
+}
+
+// Liga os marcadores (miniaturas ou bolinhas) ao item em destaque
+function marcarIndicadores(indicadores, indice) {
+  indicadores.forEach((indicador, i) => {
+    indicador.classList.toggle("is-active", i === indice);
+    if (i === indice) indicador.setAttribute("aria-current", "true");
+    else indicador.removeAttribute("aria-current");
+  });
+}
+
+
 // Avaliações do Google: troca os cartões de carregamento pelos cartões reais
 const secaoAvaliacoes = document.getElementById("avaliacoes");
-const listaAvaliacoes = document.getElementById("avaliacoes-lista");
-const avAnterior = document.getElementById("avaliacoes-anterior");
-const avProxima = document.getElementById("avaliacoes-proxima");
+const avCarrossel = document.getElementById("avaliacoes-carrossel");
+const avLista = document.getElementById("avaliacoes-lista");
+const avPontos = document.getElementById("avaliacoes-pontos");
 const CORES_AVATAR = ["#1a73e8", "#9334e6", "#e8710a", "#188038", "#d93025", "#12b5cb"];
 
 function criarAvaliacao(avaliacao, indice) {
-  const cartao = document.createElement("article");
-  cartao.className = "review";
+  const estrelas = document.createElement("div");
+  estrelas.className = "review-stars";
+  estrelas.setAttribute("role", "img");
+  estrelas.setAttribute("aria-label", avaliacao.estrelas + " de 5 estrelas");
+  estrelas.innerHTML = htmlEstrelas(avaliacao.estrelas);
+
+  // Comentários curtos aparecem em letra maior
+  const texto = document.createElement("blockquote");
+  texto.className = "review-text" +
+    (avaliacao.texto.length <= 40 ? " is-short" : avaliacao.texto.length <= 120 ? " is-medium" : "");
+  texto.textContent = avaliacao.texto;
+
+  const mais = document.createElement("button");
+  mais.className = "review-more";
+  mais.type = "button";
+  mais.hidden = true;
+  mais.textContent = "Ver mais";
 
   const inicial = document.createElement("span");
   inicial.className = "review-avatar";
@@ -159,63 +468,20 @@ function criarAvaliacao(avaliacao, indice) {
   quem.className = "review-who";
   quem.append(nome, origem);
 
-  const topo = document.createElement("header");
-  topo.className = "review-top";
-  topo.append(inicial, quem);
-  topo.insertAdjacentHTML("beforeend", '<svg class="review-g" aria-hidden="true"><use href="#i-google"/></svg>');
+  const autor = document.createElement("footer");
+  autor.className = "review-author";
+  autor.append(inicial, quem);
+  autor.insertAdjacentHTML("beforeend", '<svg class="review-g" aria-hidden="true"><use href="#i-google"/></svg>');
 
-  const estrelas = document.createElement("div");
-  estrelas.className = "review-stars";
-  estrelas.setAttribute("role", "img");
-  estrelas.setAttribute("aria-label", avaliacao.estrelas + " de 5 estrelas");
-  estrelas.innerHTML = htmlEstrelas(avaliacao.estrelas);
+  const cartao = document.createElement("article");
+  cartao.className = "review";
+  cartao.insertAdjacentHTML("afterbegin", '<span class="review-quote" aria-hidden="true">“</span>');
+  cartao.append(estrelas, texto, mais, autor);
 
-  const texto = document.createElement("blockquote");
-  texto.className = "review-text";
-  texto.textContent = avaliacao.texto;
-
-  const mais = document.createElement("button");
-  mais.className = "review-more";
-  mais.type = "button";
-  mais.hidden = true;
-  mais.textContent = "Ver mais";
-  mais.addEventListener("click", () => {
-    const aberto = cartao.classList.toggle("is-open");
-    mais.textContent = aberto ? "Ver menos" : "Ver mais";
-  });
-
-  cartao.append(topo, estrelas, texto, mais);
-  return cartao;
-}
-
-// "Ver mais" só aparece nos textos que não couberam no cartão
-function atualizarVerMais() {
-  listaAvaliacoes.querySelectorAll(".review:not(.is-skeleton)").forEach((cartao) => {
-    if (cartao.classList.contains("is-open")) return;
-    const texto = cartao.querySelector(".review-text");
-    cartao.querySelector(".review-more").hidden = texto.scrollHeight <= texto.clientHeight + 1;
-  });
-}
-
-function atualizarSetasAvaliacoes() {
-  const sobra = listaAvaliacoes.scrollWidth - listaAvaliacoes.clientWidth;
-  const temMais = sobra > 4;
-  avAnterior.hidden = !temMais;
-  avProxima.hidden = !temMais;
-  avAnterior.disabled = listaAvaliacoes.scrollLeft <= 4;
-  avProxima.disabled = listaAvaliacoes.scrollLeft >= sobra - 4;
-}
-
-function rolarAvaliacoes(direcao) {
-  const cartao = listaAvaliacoes.querySelector(".review");
-  if (!cartao) return;
-  const passo = cartao.offsetWidth + parseFloat(getComputedStyle(listaAvaliacoes).columnGap || 0);
-  listaAvaliacoes.scrollBy({ left: direcao * passo, behavior: semMovimento ? "auto" : "smooth" });
-}
-
-function ajustarAvaliacoes() {
-  atualizarVerMais();
-  atualizarSetasAvaliacoes();
+  const slide = document.createElement("li");
+  slide.className = "rv-slide";
+  slide.append(cartao);
+  return slide;
 }
 
 const avaliacoesValidas = AVALIACOES
@@ -224,8 +490,8 @@ const avaliacoesValidas = AVALIACOES
   .sort((a, b) => (b.estrelas - a.estrelas) || (b.texto.length - a.texto.length));
 
 if (avaliacoesValidas.length) {
-  listaAvaliacoes.replaceChildren(...avaliacoesValidas.map(criarAvaliacao));
-  listaAvaliacoes.removeAttribute("aria-busy");
+  avLista.replaceChildren(...avaliacoesValidas.map(criarAvaliacao));
+  avLista.removeAttribute("aria-busy");
   document.getElementById("avaliacoes-link").href = AVALIACOES_LINK;
 
   if (AVALIACOES_NOTA && AVALIACOES_TOTAL) {
@@ -233,16 +499,55 @@ if (avaliacoesValidas.length) {
       AVALIACOES_NOTA.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     document.getElementById("avaliacoes-estrelas").innerHTML = htmlEstrelas(Math.round(AVALIACOES_NOTA));
     document.getElementById("avaliacoes-total").textContent =
-      AVALIACOES_TOTAL + (AVALIACOES_TOTAL === 1 ? " avaliação" : " avaliações");
+      AVALIACOES_TOTAL + (AVALIACOES_TOTAL === 1 ? " avaliação" : " avaliações") + " no Google";
     document.getElementById("avaliacoes-resumo").hidden = false;
   }
 
-  avAnterior.addEventListener("click", () => rolarAvaliacoes(-1));
-  avProxima.addEventListener("click", () => rolarAvaliacoes(1));
-  listaAvaliacoes.addEventListener("scroll", atualizarSetasAvaliacoes, { passive: true });
-  window.addEventListener("resize", ajustarAvaliacoes);
-  window.addEventListener("load", ajustarAvaliacoes);
-  ajustarAvaliacoes();
+  // Bolinhas: uma por avaliação
+  const pontos = avaliacoesValidas.map((avaliacao, indice) => {
+    const ponto = document.createElement("button");
+    ponto.type = "button";
+    ponto.className = "rv-dot";
+    ponto.setAttribute("aria-label", "Avaliação " + (indice + 1) + " de " + avaliacoesValidas.length + ": " + avaliacao.nome);
+    ponto.append(document.createElement("span"));
+    ponto.addEventListener("click", () => carAvaliacoes.ir(indice));
+    return ponto;
+  });
+
+  avPontos.append(...pontos);
+
+  const carAvaliacoes = criarCarrossel({
+    raiz: avCarrossel,
+    visor: avCarrossel.querySelector(".rv-viewport"),
+    trilho: avLista,
+    anterior: document.getElementById("avaliacoes-anterior"),
+    proxima: document.getElementById("avaliacoes-proxima"),
+    pausa: document.getElementById("avaliacoes-pausa"),
+    oQue: "das avaliações",
+    aoTrocar: (indice) => marcarIndicadores(pontos, indice),
+    // "Ver mais" abre o texto inteiro (nas três cópias do cartão, para ficarem iguais)
+    aoTocar: (indice, e, carrossel) => {
+      if (!e.target.closest(".review-more")) return;
+      carrossel.slides.forEach((slide, i) => {
+        if (i % carrossel.total !== indice) return;
+        const aberto = slide.querySelector(".review").classList.toggle("is-open");
+        slide.querySelector(".review-more").textContent = aberto ? "Ver menos" : "Ver mais";
+      });
+    },
+  });
+
+  // "Ver mais" só aparece nos textos que não couberam no cartão
+  const atualizarVerMais = () => {
+    carAvaliacoes.slides.forEach((slide) => {
+      if (slide.querySelector(".review").classList.contains("is-open")) return;
+      const texto = slide.querySelector(".review-text");
+      slide.querySelector(".review-more").hidden = texto.scrollHeight <= texto.clientHeight + 1;
+    });
+  };
+
+  window.addEventListener("resize", atualizarVerMais);
+  window.addEventListener("load", atualizarVerMais);
+  atualizarVerMais();
 } else {
   // Sem avaliações cadastradas, a seção e o link do menu somem
   secaoAvaliacoes.hidden = true;
@@ -250,26 +555,15 @@ if (avaliacoesValidas.length) {
 }
 
 
-// Galeria em carrossel
-// A foto do centro fica em destaque. Dá para arrastar, usar as setas (da tela ou
-// do teclado) ou tocar em uma miniatura; tocar na foto em destaque amplia.
-// As fotos passam sozinhas e, depois da última, a primeira volta sem emendas:
-// para isso a fileira é montada três vezes e o carrossel sempre para no grupo
-// do meio, que é o das fotos de verdade.
+// Galeria de fotos em carrossel: tocar na foto em destaque amplia
 const galeria = document.getElementById("galeria");
-const galVisor = galeria.querySelector(".lux-viewport");
 const galTrilho = galeria.querySelector(".lux-track");
 const galLegenda = document.getElementById("galeria-legenda");
 const galAtual = document.getElementById("galeria-atual");
 const galTitulo = document.getElementById("galeria-titulo");
 const galMinis = document.getElementById("galeria-miniaturas");
-const galPausa = document.getElementById("galeria-pausa");
 
-const slidesReais = Array.from(galTrilho.children);
-const TOTAL_FOTOS = slidesReais.length;
-const doisDigitos = (n) => String(n).padStart(2, "0");
-
-const fotos = slidesReais.map((slide) => {
+const fotos = Array.from(galTrilho.children).map((slide) => {
   const botao = slide.querySelector(".lux-photo");
   const img = botao.querySelector("img");
   return {
@@ -278,32 +572,6 @@ const fotos = slidesReais.map((slide) => {
     alt: img.alt,
     titulo: botao.dataset.titulo || "",
   };
-});
-
-function copiaDeSlide(slide) {
-  const copia = slide.cloneNode(true);
-  copia.setAttribute("aria-hidden", "true");
-  copia.querySelector(".lux-photo").tabIndex = -1;
-  return copia;
-}
-
-galTrilho.prepend(...slidesReais.map(copiaDeSlide));
-galTrilho.append(...slidesReais.map(copiaDeSlide));
-
-const slides = Array.from(galTrilho.children);
-
-// Cada foto surge quando termina de carregar; até lá fica o esqueleto
-slides.forEach((slide) => {
-  const botao = slide.querySelector(".lux-photo");
-  const img = botao.querySelector("img");
-  const pronta = () => botao.classList.add("is-loaded");
-
-  if (img.complete && img.naturalWidth) {
-    pronta();
-  } else {
-    img.addEventListener("load", pronta);
-    img.addEventListener("error", pronta);
-  }
 });
 
 // Miniaturas
@@ -323,245 +591,66 @@ const miniaturas = fotos.map((foto, indice) => {
   barra.className = "lux-thumb-bar";
 
   botao.append(img, barra);
-  botao.addEventListener("click", () => irParaFoto(indice));
+  botao.addEventListener("click", () => carGaleria.ir(indice));
   return botao;
 });
 
 galMinis.append(...miniaturas);
-document.getElementById("galeria-total").textContent = "/ " + doisDigitos(TOTAL_FOTOS);
+document.getElementById("galeria-total").textContent = "/ " + doisDigitos(fotos.length);
 
-let galPos = TOTAL_FOTOS;   // posição na fileira triplicada
-let galPeriodo = 0;         // largura de um grupo de fotos
-let galFoto = -1;           // foto em destaque (0 = primeira)
+const carGaleria = criarCarrossel({
+  raiz: galeria,
+  visor: galeria.querySelector(".lux-viewport"),
+  trilho: galTrilho,
+  anterior: document.getElementById("galeria-anterior"),
+  proxima: document.getElementById("galeria-proxima"),
+  pausa: document.getElementById("galeria-pausa"),
+  oQue: "das fotos",
+  aoVivo: galLegenda,
+  aoTocar: (indice) => abrirFoto(indice),
+  aoTrocar: (indice, carrossel) => {
+    marcarIndicadores(miniaturas, indice);
 
-// Posição atual da fileira na tela, mesmo no meio de uma animação
-function xAtual() {
-  return new DOMMatrixReadOnly(getComputedStyle(galTrilho).transform).m41;
-}
+    // Só a foto em destaque entra na ordem do Tab
+    carrossel.reais.forEach((slide, i) => (slide.querySelector(".lux-photo").tabIndex = i === indice ? 0 : -1));
 
-// Posição da fileira que deixa o slide "pos" no centro
-function xDe(pos) {
-  const slide = slides[pos];
-  return galVisor.clientWidth / 2 - (slide.offsetLeft + slide.offsetWidth / 2);
-}
+    galAtual.textContent = doisDigitos(indice + 1);
+    galTitulo.textContent = fotos[indice].titulo;
+    galLegenda.classList.remove("is-changing");
+    void galLegenda.offsetWidth;
+    galLegenda.classList.add("is-changing");
+  },
+});
 
-function definirX(x, animar) {
-  galTrilho.style.transition = animar ? "" : "none";
-  galTrilho.style.transform = "translate3d(" + x + "px, 0, 0)";
-  if (!animar) void galTrilho.offsetWidth;
-}
+// Cada foto surge quando termina de carregar; até lá fica o esqueleto
+carGaleria.slides.forEach((slide) => {
+  const botao = slide.querySelector(".lux-photo");
+  const img = botao.querySelector("img");
+  const pronta = () => botao.classList.add("is-loaded");
 
-function marcarFoto() {
-  const foto = galPos % TOTAL_FOTOS;
-  if (foto === galFoto) return;
-  galFoto = foto;
-
-  slides.forEach((slide, i) => slide.classList.toggle("is-active", i % TOTAL_FOTOS === foto));
-  slidesReais.forEach((slide, i) => (slide.querySelector(".lux-photo").tabIndex = i === foto ? 0 : -1));
-
-  miniaturas.forEach((mini, i) => {
-    mini.classList.toggle("is-active", i === foto);
-    if (i === foto) mini.setAttribute("aria-current", "true");
-    else mini.removeAttribute("aria-current");
-  });
-
-  galAtual.textContent = doisDigitos(foto + 1);
-  galTitulo.textContent = fotos[foto].titulo;
-  galLegenda.classList.remove("is-changing");
-  void galLegenda.offsetWidth;
-  galLegenda.classList.add("is-changing");
-}
-
-function irPara(pos, animar) {
-  // Se o destino cairia em uma cópia, a fileira primeiro salta um grupo inteiro
-  // (as fotos são idênticas, então ninguém vê) e só depois desliza
-  const salto = pos >= 2 * TOTAL_FOTOS ? -TOTAL_FOTOS : pos < TOTAL_FOTOS ? TOTAL_FOTOS : 0;
-
-  if (salto) {
-    definirX(xAtual() - Math.sign(salto) * galPeriodo, false);
-    pos += salto;
+  if (img.complete && img.naturalWidth) {
+    pronta();
+  } else {
+    img.addEventListener("load", pronta);
+    img.addEventListener("error", pronta);
   }
+});
 
-  galPos = pos;
-  marcarFoto();
-  definirX(xDe(pos), animar);
+// As fotos (e as cópias) carregam todas de uma vez quando a galeria se aproxima
+function carregarFotosDaGaleria() {
+  carGaleria.slides.forEach((slide) => (slide.querySelector("img").loading = "eager"));
 }
-
-function moverGaleria(passos) {
-  irPara(galPos + passos, true);
-}
-
-// Vai até a foto pelo caminho mais curto
-function irParaFoto(foto) {
-  let passos = foto - (galPos % TOTAL_FOTOS);
-  if (passos > TOTAL_FOTOS / 2) passos -= TOTAL_FOTOS;
-  if (passos < -TOTAL_FOTOS / 2) passos += TOTAL_FOTOS;
-  if (passos) moverGaleria(passos);
-}
-
-function medirGaleria() {
-  galPeriodo = slides[TOTAL_FOTOS].offsetLeft - slides[0].offsetLeft;
-  definirX(xDe(galPos), false);
-}
-
-galeria.classList.add("is-ready");
-medirGaleria();
-marcarFoto();
-
-if ("ResizeObserver" in window) {
-  new ResizeObserver(medirGaleria).observe(galVisor);
-} else {
-  window.addEventListener("resize", medirGaleria);
-}
-
-// O foco do teclado em uma foto não pode deslocar a fileira por conta própria
-galVisor.addEventListener("scroll", () => {
-  if (galVisor.scrollLeft) galVisor.scrollLeft = 0;
-});
-
-document.getElementById("galeria-anterior").addEventListener("click", () => moverGaleria(-1));
-document.getElementById("galeria-proxima").addEventListener("click", () => moverGaleria(1));
-
-galeria.addEventListener("keydown", (e) => {
-  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-  e.preventDefault();
-  const focoNaFoto = document.activeElement.classList.contains("lux-photo");
-  moverGaleria(e.key === "ArrowRight" ? 1 : -1);
-  if (focoNaFoto) slidesReais[galFoto].querySelector(".lux-photo").focus({ preventScroll: true });
-});
-
-// Arrastar com o dedo ou com o mouse
-let arrasto = null;
-let fimDoArrasto = 0;
-
-galVisor.addEventListener("dragstart", (e) => e.preventDefault());
-
-galVisor.addEventListener("pointerdown", (e) => {
-  if (e.pointerType === "mouse" && e.button !== 0) return;
-  arrasto = { id: e.pointerId, inicio: e.clientX, base: 0, andou: 0, ativo: false };
-});
-
-galVisor.addEventListener("pointermove", (e) => {
-  if (!arrasto || e.pointerId !== arrasto.id) return;
-
-  if (!arrasto.ativo) {
-    // O botão do mouse foi solto fora da galeria antes de o arrasto começar
-    if (e.pointerType === "mouse" && !(e.buttons & 1)) {
-      arrasto = null;
-      return;
-    }
-
-    if (Math.abs(e.clientX - arrasto.inicio) < 8) return;
-    arrasto.ativo = true;
-    arrasto.inicio = e.clientX;
-    arrasto.base = xAtual();
-    galVisor.setPointerCapture(e.pointerId);
-    galeria.classList.add("is-dragging");
-    segurarGaleria("arrasto", true);
-  }
-
-  arrasto.andou = e.clientX - arrasto.inicio;
-  definirX(arrasto.base + arrasto.andou, false);
-});
-
-function soltarArrasto(e) {
-  if (!arrasto || e.pointerId !== arrasto.id) return;
-  const { ativo, andou } = arrasto;
-  arrasto = null;
-  if (!ativo) return;
-
-  fimDoArrasto = performance.now();
-  galeria.classList.remove("is-dragging");
-  segurarGaleria("arrasto", false);
-
-  // Para na foto mais perto do centro; um arrasto curto já basta para trocar
-  const centro = galVisor.clientWidth / 2 - xAtual();
-  let alvo = galPos;
-  let menor = Infinity;
-
-  slides.forEach((slide, i) => {
-    const distancia = Math.abs(slide.offsetLeft + slide.offsetWidth / 2 - centro);
-    if (distancia < menor) {
-      menor = distancia;
-      alvo = i;
-    }
-  });
-
-  if (alvo === galPos && Math.abs(andou) > 40) alvo -= Math.sign(andou);
-  irPara(alvo, true);
-}
-
-galVisor.addEventListener("pointerup", soltarArrasto);
-galVisor.addEventListener("pointercancel", soltarArrasto);
-
-// Toque na foto em destaque amplia; toque em uma vizinha traz ela para o centro
-galTrilho.addEventListener("click", (e) => {
-  const slide = e.target.closest(".lux-slide");
-  if (!slide || performance.now() - fimDoArrasto < 350) return;
-
-  if (slide.classList.contains("is-active")) abrirFoto(galFoto);
-  else moverGaleria(slides.indexOf(slide) - galPos);
-});
-
-// Apresentação automática. Quem marca o tempo é a barrinha da miniatura (uma
-// animação em CSS): quando ela enche, vem a próxima foto. A barrinha para com o
-// mouse em cima, durante o arrasto, com a foto ampliada, com o foco do teclado
-// na galeria e quando a galeria sai da tela.
-let galTocando = !semMovimento;
-const galEsperas = new Set();
-
-function segurarGaleria(motivo, segurar) {
-  if (segurar) galEsperas.add(motivo);
-  else galEsperas.delete(motivo);
-  galeria.classList.toggle("is-held", galEsperas.size > 0);
-}
-
-function atualizarApresentacao() {
-  galeria.classList.toggle("is-playing", galTocando);
-  galPausa.setAttribute("aria-label", (galTocando ? "Pausar" : "Retomar") + " a apresentação das fotos");
-  galPausa.querySelector("use").setAttribute("href", galTocando ? "#i-pause" : "#i-play");
-  // Com as fotos passando sozinhas, o leitor de tela não anuncia cada troca
-  galLegenda.setAttribute("aria-live", galTocando ? "off" : "polite");
-}
-
-galPausa.hidden = semMovimento;
-galPausa.addEventListener("click", () => {
-  galTocando = !galTocando;
-  atualizarApresentacao();
-});
-
-galMinis.addEventListener("animationend", (e) => {
-  if (e.animationName === "lux-fill") moverGaleria(1);
-});
-
-galeria.addEventListener("pointerenter", (e) => {
-  if (e.pointerType === "mouse") segurarGaleria("mouse", true);
-});
-galeria.addEventListener("pointerleave", () => segurarGaleria("mouse", false));
-
-galeria.addEventListener("focusin", (e) => {
-  if (e.target.matches(":focus-visible")) segurarGaleria("foco", true);
-});
-galeria.addEventListener("focusout", () => segurarGaleria("foco", false));
 
 if ("IntersectionObserver" in window) {
-  segurarGaleria("fora-da-tela", true);
-  new IntersectionObserver(([entrada]) => {
-    segurarGaleria("fora-da-tela", !entrada.isIntersecting);
-  }, { threshold: 0.35 }).observe(galVisor);
-
-  // As fotos (e as cópias) carregam todas de uma vez quando a galeria se aproxima
-  const carregarFotos = new IntersectionObserver(([entrada]) => {
+  const pertoDaGaleria = new IntersectionObserver(([entrada]) => {
     if (!entrada.isIntersecting) return;
-    slides.forEach((slide) => (slide.querySelector("img").loading = "eager"));
-    carregarFotos.disconnect();
+    carregarFotosDaGaleria();
+    pertoDaGaleria.disconnect();
   }, { rootMargin: "900px 0px" });
-  carregarFotos.observe(galeria);
+  pertoDaGaleria.observe(galeria);
 } else {
-  slides.forEach((slide) => (slide.querySelector("img").loading = "eager"));
+  carregarFotosDaGaleria();
 }
-
-atualizarApresentacao();
 
 
 // Mapa: o esqueleto some quando o mapa do Google termina de carregar
@@ -606,13 +695,13 @@ function abrirFoto(indice) {
   fotoAtual = indice;
   mostrarFoto();
   if (!lightbox.open) lightbox.showModal();
-  segurarGaleria("ampliada", true);
+  carGaleria.segurar("ampliada", true);
 }
 
 // Ao fechar, o carrossel fica na última foto vista e volta a passar sozinho
 lightbox.addEventListener("close", () => {
-  irParaFoto(fotoAtual);
-  segurarGaleria("ampliada", false);
+  carGaleria.ir(fotoAtual);
+  carGaleria.segurar("ampliada", false);
 });
 
 function trocarFoto(direcao) {
